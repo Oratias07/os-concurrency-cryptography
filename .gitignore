@@ -1,0 +1,10 @@
+.claude/
+*.o
+*.d
+file_crypt
+libshell
+reader_shell
+catalog_shell
+archive_shell
+encrypted_output.dat
+decrypted_output.dat
