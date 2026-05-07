@@ -30,36 +30,44 @@ int main() {
     while (1) {
         char command[100];
         printf("Catalog$** ");
-        if (scanf("%s", command) != 1) {
+        int r = scanf("%s", command);
+        if (r == EOF) break;
+        if (r != 1) {
             printf("Missing parameters\n");
-            break; // EOF or error
+            break;
         }
+
+        int did_fork = 0;
 
         if (strcmp(command, "Esc") == 0) {
             printf("Returning to the LibShell...\n");
-            break; // Exit the Catalog shell
+            break;
         } else if (strcmp(command, "find") == 0) {
             char line[200];
             char word[100], fileName[100];
-            fgets(line, sizeof(line), stdin);
+            if (fgets(line, sizeof(line), stdin) == NULL) break;
 
             if (sscanf(line, "%s %s", word, fileName) != 2) {
                 printf("Missing parameters\n");
-                continue; // EOF or error, prompt again
+                continue;
             }
-            if (fork() == 0) {
+            pid_t pid = fork();
+            if (pid < 0) {
+                perror("fork");
+                continue;
+            }
+            if (pid == 0) {
                 execl("/bin/grep", "grep", word, fileName, NULL);
                 perror("File not found");
-                return 1; // Exit child process on failure
+                return 1;
             }
+            did_fork = 1;
         } else if (strcmp(command, "ls") == 0) {
             char line[200];
             char arg[100];
-            
-            // Check if the argument for ls command is provided (e.g., -l)
-            fgets(line, sizeof(line), stdin);
 
-            // Check if the argument is provided and if it is "-l"
+            if (fgets(line, sizeof(line), stdin) == NULL) break;
+
             if (sscanf(line, "%s", arg) != 1) {
                 printf("Missing parameters\n");
                 continue;
@@ -67,46 +75,62 @@ int main() {
                 printf("Not Supported\n");
                 continue;
             }
-            if (fork() == 0) {
+            pid_t pid = fork();
+            if (pid < 0) {
+                perror("fork");
+                continue;
+            }
+            if (pid == 0) {
                 execl("/bin/ls", "ls", "-l", NULL);
                 perror("execl failed");
                 exit(1);
             }
+            did_fork = 1;
         } else if (strcmp(command, "newcat") == 0) {
             char line[200];
             char fileName[100];
-            
-            // Check if the argument for cat command is provided (filename)
-            fgets(line, sizeof(line), stdin);
-            
+
+            if (fgets(line, sizeof(line), stdin) == NULL) break;
+
             if (sscanf(line, "%s", fileName) != 1) {
                 printf("Missing parameters\n");
-                continue; // EOF or error, prompt again
+                continue;
             }
-            if (fork() == 0) {
+            pid_t pid = fork();
+            if (pid < 0) {
+                perror("fork");
+                continue;
+            }
+            if (pid == 0) {
                 execl("/bin/mkdir", "mkdir", fileName, NULL);
                 perror("File not found");
-                exit(1); // Exit child process on failure
+                exit(1);
             }
+            did_fork = 1;
         } else if (strcmp(command, "run") == 0) {
             char line[200];
             char prog[100], arg[100];
-            
-            // Check if the argument for cat command is provided (filename)
-            fgets(line, sizeof(line), stdin);
-            
+
+            if (fgets(line, sizeof(line), stdin) == NULL) break;
+
             if (sscanf(line, "%s %s", prog, arg) != 2) {
                 printf("Missing parameters\n");
-                continue; // EOF or error, prompt again
+                continue;
             }
-            if (fork() == 0) {
+            pid_t pid = fork();
+            if (pid < 0) {
+                perror("fork");
+                continue;
+            }
+            if (pid == 0) {
                 execlp(prog, prog, arg, NULL);
                 perror("File not found");
-                exit(1); // Exit child process on failure
+                exit(1);
             }
+            did_fork = 1;
         } else {
             printf("Not Supported\n");
         }
-        wait(NULL); // Wait for the child process to finish
+        if (did_fork) wait(NULL);
     }
 }

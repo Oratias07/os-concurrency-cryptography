@@ -29,43 +29,53 @@ int main() {
     while (1) {
         char command[100];
         printf("Reader$** ");
-        if (fgets(command, sizeof(command), stdin) == NULL) {
-            printf("Missing parameter\n");
-            continue; // EOF or error, prompt again
-        }
-        // Remove newline character from the end of the command
+        if (fgets(command, sizeof(command), stdin) == NULL) break;
         command[strcspn(command, "\n")] = 0;
+
+        int did_fork = 0;
 
         if (strcmp(command, "Esc") == 0) {
             printf("Returning to the LibShell...\n");
-            break; // Exit the Reader shell
+            break;
         } else if (strcmp(command, "date") == 0) {
-            if (fork() == 0) {
+            pid_t pid = fork();
+            if (pid < 0) { perror("fork"); continue; }
+            if (pid == 0) {
                 execl("/bin/date", "date", NULL);
                 perror("File not found");
-                return 1; // Exit child process
+                return 1;
             }
+            did_fork = 1;
         } else if (strcmp(command, "whoami") == 0) {
-            if (fork() == 0) {
+            pid_t pid = fork();
+            if (pid < 0) { perror("fork"); continue; }
+            if (pid == 0) {
                 execl("/usr/bin/whoami", "whoami", NULL);
                 perror("File not found");
-                return 1; // Exit child process
+                return 1;
             }
+            did_fork = 1;
         } else if (strcmp(command, "pwd") == 0) {
-            if (fork() == 0) {
+            pid_t pid = fork();
+            if (pid < 0) { perror("fork"); continue; }
+            if (pid == 0) {
                 execl("/bin/pwd", "pwd", NULL);
                 perror("File not found");
-                return 1; // Exit child process
+                return 1;
             }
+            did_fork = 1;
         } else if (strcmp(command, "uptime") == 0) {
-            if (fork() == 0) {
+            pid_t pid = fork();
+            if (pid < 0) { perror("fork"); continue; }
+            if (pid == 0) {
                 execl("/usr/bin/uptime", "uptime", NULL);
                 perror("File not found");
-                return 1; // Exit child process
+                return 1;
             }
+            did_fork = 1;
         } else {
             printf("Not Supported\n");
         }
-        wait(NULL); // Wait for the child process to finish
+        if (did_fork) wait(NULL);
     }
 }

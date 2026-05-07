@@ -3,7 +3,7 @@
 #include <fcntl.h>    // open
 #include <unistd.h>   // fork, read, write, close, execl, unlink
 #include <sys/wait.h> // wait
-#include <stdlib.h>   // atoi
+#include <stdlib.h>   // strtol
 #include <sys/stat.h> // chmod
 
 // Main function for the Archive Shell
@@ -32,102 +32,131 @@ int main() {
     while (1) {
         char command[100];
         printf("Archive$** ");
-        if (scanf("%s", command) != 1) {
+        int r = scanf("%s", command);
+        if (r == EOF) break;
+        if (r != 1) {
             printf("Missing parameters\n");
-            continue; // EOF or error, prompt again
+            continue;
         }
+
+        int did_fork = 0;
 
         if (strcmp(command, "Esc") == 0) {
             printf("Returning to the LibShell...\n");
-            break; // Exit the Archive shell
+            break;
         } else if (strcmp(command, "merge") == 0) {
             char src[100], dst[100];
-            // Check if both parameters (source and destination filenames) are provided for the merge command
-            // The merge command appends the contents of the source file to the destination file
-            if (scanf("%s %s", src, dst) != 2) {
+            r = scanf("%s %s", src, dst);
+            if (r == EOF) break;
+            if (r != 2) {
                 printf("Missing parameters\n");
-                continue; // EOF or error, prompt again
+                continue;
             }
-            if (fork() == 0) {
+            pid_t pid = fork();
+            if (pid < 0) {
+                perror("fork");
+                continue;
+            }
+            if (pid == 0) {
                 int src_fd = open(src, O_RDONLY);
                 int dst_fd = open(dst, O_WRONLY | O_APPEND, 0644);
-                // Check if the source and destination files were opened successfully
                 if (src_fd < 0) {
                     perror("File not found");
-                    return 1; // Exit child process
+                    return 1;
                 }
                 if (dst_fd < 0) {
+                    close(src_fd);
                     perror("File not found");
-                    return 1; // Exit child process
+                    return 1;
                 }
 
                 char buffer[1024];
-                size_t bytesRead;
-                // Read from the source file and write to the destination file in chunks
-                // This approach is efficient for handling large files without consuming excessive memory
+                ssize_t bytesRead;
                 while ((bytesRead = read(src_fd, buffer, sizeof(buffer))) > 0) {
                     if (write(dst_fd, buffer, bytesRead) != bytesRead) {
                         perror("Failed to write to destination file");
-                        return 1; // Exit child process
+                        return 1;
                     }
                 }
                 if (bytesRead < 0) {
                     perror("Failed to read from source file");
-                    return 1; // Exit child process
+                    return 1;
                 }
-                close(src_fd); // Close the file descriptor after checking
-                close(dst_fd); // Close the file descriptor after checking
-                return 0; // Exit child process successfully
+                close(src_fd);
+                close(dst_fd);
+                return 0;
             }
+            did_fork = 1;
         } else if (strcmp(command, "count") == 0) {
             char fileName[100];
-            // Check if the filename parameter is provided for the count command
-            if (scanf("%s", fileName) != 1) {
+            r = scanf("%s", fileName);
+            if (r == EOF) break;
+            if (r != 1) {
                 printf("Missing parameters\n");
-                continue; // EOF or error, prompt again
+                continue;
             }
-            if (fork() == 0) {
+            pid_t pid = fork();
+            if (pid < 0) {
+                perror("fork");
+                continue;
+            }
+            if (pid == 0) {
                 execl("/bin/wc", "wc", fileName, NULL);
                 perror("File not found");
-                return 1; // Exit child process
+                return 1;
             }
+            did_fork = 1;
         } else if (strcmp(command, "remove") == 0) {
             char fileName[100];
-            // Check if the filename parameter is provided for the remove command
-            if (scanf("%s", fileName) != 1) {
+            r = scanf("%s", fileName);
+            if (r == EOF) break;
+            if (r != 1) {
                 printf("Missing parameters\n");
-                continue; // EOF or error, prompt again
+                continue;
             }
-            if (fork() == 0) {
-                if (unlink(fileName) < 0) { // Remove the file using unlink system call
+            pid_t pid = fork();
+            if (pid < 0) {
+                perror("fork");
+                continue;
+            }
+            if (pid == 0) {
+                if (unlink(fileName) < 0) {
                     perror("File not found");
-                    return 1; // Exit child process
+                    return 1;
                 }
-                return 0; // Exit child process successfully
+                return 0;
             }
+            did_fork = 1;
         } else if (strcmp(command, "protect") == 0) {
             char mode[100], fileName[100];
-            // Check if both parameters (mode and filename) are provided for the protect command
-            if (scanf("%s %s", mode, fileName) != 2) {
+            r = scanf("%s %s", mode, fileName);
+            if (r == EOF) break;
+            if (r != 2) {
                 printf("Missing parameters\n");
-                continue; // EOF or error, prompt again
+                continue;
             }
-            int modeInt = (int)strtol(mode, NULL, 8); // Convert the mode string to an integer using strtol with base 8 (octal)
+            int modeInt = (int)strtol(mode, NULL, 8);
             if (modeInt < 0 || modeInt > 0777) {
                 printf("Invalid Mode!!\n");
-                continue; // Invalid mode
+                continue;
             }
-            if (fork() == 0) {
-                if (chmod(fileName, modeInt) < 0) { // Change file permissions using chmod system call
+            pid_t pid = fork();
+            if (pid < 0) {
+                perror("fork");
+                continue;
+            }
+            if (pid == 0) {
+                if (chmod(fileName, modeInt) < 0) {
                     perror("File not found");
-                    return 1; // Exit child process
+                    return 1;
                 }
                 printf("Permissions updated\n");
-                return 0; // Exit child process successfully
+                return 0;
             }
+            did_fork = 1;
         } else {
             printf("Not Supported\n");
         }
-        wait(NULL); // Wait for the child process to finish
+        if (did_fork) wait(NULL);
     }
 }

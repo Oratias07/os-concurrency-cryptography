@@ -49,40 +49,48 @@ int main() {
 
     while (1) {
         printf("Lib$** ");
-        if (fgets(command, sizeof(command), stdin) == NULL) {
-            continue; // EOF or error, prompt again
-        }
-        // Remove newline character from the end of the command
+        if (fgets(command, sizeof(command), stdin) == NULL) break;
         command[strcspn(command, "\n")] = 0;
+
+        int did_fork = 0;
+
         if (strcmp(command, "exit") == 0) {
             printf("Goodbye from Libshell\n");
-            break; // Exit the shell
-        }
-        else if (strcmp(command, "reader") == 0) {
-            if (fork() == 0) {
+            break;
+        } else if (strcmp(command, "reader") == 0) {
+            pid_t pid = fork();
+            if (pid < 0) { perror("fork"); continue; }
+            if (pid == 0) {
                 printf("Entering Reader Shell...\n");
                 execl("./reader_shell", "reader_shell", NULL);
                 perror("Failed to execute reader");
                 exit(EXIT_FAILURE);
             }
+            did_fork = 1;
         } else if (strcmp(command, "catalog") == 0) {
-            if (fork() == 0) {
+            pid_t pid = fork();
+            if (pid < 0) { perror("fork"); continue; }
+            if (pid == 0) {
                 printf("Entering Catalog Shell...\n");
                 execl("./catalog_shell", "catalog_shell", NULL);
                 perror("Failed to execute catalog");
                 exit(EXIT_FAILURE);
             }
+            did_fork = 1;
         } else if (strcmp(command, "archive") == 0) {
-            if (fork() == 0) {
+            pid_t pid = fork();
+            if (pid < 0) { perror("fork"); continue; }
+            if (pid == 0) {
                 printf("Entering Archive Shell...\n");
                 execl("./archive_shell", "archive_shell", NULL);
                 perror("Failed to execute archive");
                 exit(EXIT_FAILURE);
             }
+            did_fork = 1;
         } else {
             printf("Not Supported\n");
         }
-        wait(NULL); // Wait for the child process to finish
+        if (did_fork) wait(NULL);
     }
     return 0;
 }
